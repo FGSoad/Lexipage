@@ -20,9 +20,23 @@ function dateSeed() {
 // Letters with decent Wiktionary coverage
 const LETTERS = ['B','C','D','F','G','H','J','L','M','N','P','R','S','T','V'];
 
+// Fetch with timeout — prevents hanging forever if API is unreachable
+async function fetchWithTimeout(url, ms = 7000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    return resp;
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
 async function fetchWiktionaryWords(prefix, limit = 80) {
   const url = `https://fr.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${encodeURIComponent(prefix)}&apnamespace=0&aplimit=${limit}&apminsize=100&format=json&origin=*`;
-  const resp = await fetch(url);
+  const resp = await fetchWithTimeout(url);
   const data = await resp.json();
   const pages = data.query.allpages.map(p => p.title.toUpperCase());
   // Keep only clean words: only letters + accents, 4–10 chars
@@ -33,7 +47,7 @@ async function fetchDefinition(word) {
   // Use Wiktionary parse API to get the page intro
   const url = `https://fr.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word.toLowerCase())}&prop=revisions&rvprop=content&rvslots=main&format=json&origin=*`;
   try {
-    const resp = await fetch(url);
+    const resp = await fetchWithTimeout(url);
     const data = await resp.json();
     const pages = data.query.pages;
     const page = Object.values(pages)[0];
@@ -80,6 +94,15 @@ async function fetchDefinition(word) {
 let PUZZLE = null;
 
 async function generatePuzzle() {
+  try {
+    await _generatePuzzleInner();
+  } catch(e) {
+    console.warn('generatePuzzle failed, using fallback:', e);
+    useFallback();
+  }
+}
+
+async function _generatePuzzleInner() {
   setLoadingMsg('Choix de la page du dictionnaire…');
 
   const seed = dateSeed();
