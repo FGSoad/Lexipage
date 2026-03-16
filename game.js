@@ -35,7 +35,7 @@ async function fetchWithTimeout(url, ms = 7000) {
 }
 
 async function fetchWiktionaryWords(prefix, limit = 80) {
-  const url = `https://fr.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${encodeURIComponent(prefix)}&apnamespace=0&aplimit=${limit}&apminsize=100&format=json&origin=*`;
+  const url = `/api/wiktionary?action=list&prefix=${encodeURIComponent(prefix)}&limit=${limit}`;
   const resp = await fetchWithTimeout(url);
   const data = await resp.json();
   const pages = data.query.allpages.map(p => p.title.toUpperCase());
@@ -45,7 +45,7 @@ async function fetchWiktionaryWords(prefix, limit = 80) {
 
 async function fetchDefinition(word) {
   // Use Wiktionary parse API to get the page intro
-  const url = `https://fr.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word.toLowerCase())}&prop=revisions&rvprop=content&rvslots=main&format=json&origin=*`;
+  const url = `/api/wiktionary?action=define&word=${encodeURIComponent(word.toLowerCase())}`;
   try {
     const resp = await fetchWithTimeout(url);
     const data = await resp.json();
