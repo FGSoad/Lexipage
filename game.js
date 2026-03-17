@@ -48,11 +48,14 @@ async function fetchWiktionaryWords(prefix) {
   const url = `https://fr.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${encodeURIComponent(prefix)}&apnamespace=0&aplimit=500&format=json&origin=*`;
   const resp = await fetchWithTimeout(url);
   const data = await resp.json();
-  return data.query.allpages
+  console.log('Wiktionary raw count:', data.query.allpages.length);
+  const words = data.query.allpages
     .map(p => p.title)
     .filter(w => w === w.toLowerCase())
     .filter(w => /^[a-zàâäéèêëîïôùûüçœæ]{4,10}$/.test(w))
     .map(w => w.toUpperCase());
+  console.log('Filtered words count:', words.length, words.slice(0, 5));
+  return words;
 }
 
 async function fetchDefinition(word) {
