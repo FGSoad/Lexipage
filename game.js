@@ -3,6 +3,11 @@
 //  Uses the FR Wiktionary API (allpages) — no CORS issues
 // ============================================================
 
+// DEBUG — forcer une date (format: YYYY-MM-DD)
+// mets null pour revenir au comportement normal
+const DEBUG_DATE = "2026-03-10";
+// const DEBUG_DATE = null;
+
 // Seeded RNG for reproducible daily puzzle
 function seededRng(seed) {
   let s = seed;
@@ -12,13 +17,18 @@ function seededRng(seed) {
   };
 }
 
+//function dateSeed() {
+//  const today = new Date();
+//  return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+//}
+
 function dateSeed() {
-  const today = new Date();
+  const today = DEBUG_DATE ? new Date(DEBUG_DATE) : new Date();
   return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
 }
 
 // Letters with decent Wiktionary coverage
-const LETTERS = ['B','C','D','F','G','H','J','L','M','N','P','R','S','T','V'];
+const LETTERS = ['B','C','F','G','H','J','L','M','N','P','R','S','T','V'];
 
 // Fetch with timeout — prevents hanging forever if API is unreachable
 async function fetchWithTimeout(url, ms = 7000) {
@@ -131,7 +141,8 @@ async function _generatePuzzleInner() {
 
   if (results.length < 6) { useFallback(); return; }
 
-  const today = new Date().toISOString().split('T')[0];
+  //const today = new Date().toISOString().split('T')[0];
+  const today = DEBUG_DATE ? DEBUG_DATE : new Date().toISOString().split('T')[0];
   PUZZLE = { date: today, words: results };
   startGame();
 }
@@ -475,7 +486,8 @@ function useFallback() {
   const startIdx = Math.floor(rng2() * maxIdx);
   const selected = POOL.slice(startIdx, startIdx + 20);
 
-  const today = new Date().toISOString().split('T')[0];
+  //const today = new Date().toISOString().split('T')[0];
+  const today = DEBUG_DATE ? DEBUG_DATE : new Date().toISOString().split('T')[0];
   PUZZLE = { date: today, words: selected, fallback: true };
   startGame();
 }
