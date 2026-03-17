@@ -2,21 +2,20 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  const { action, prefix, word, limit } = req.query;
+  const { action, prefix, word } = req.query;
 
   try {
     if (action === 'list') {
-      const url = `https://fr.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${encodeURIComponent(prefix)}&apnamespace=0&aplimit=500&apminsize=200&format=json&origin=*`;
+      const url = `https://fr.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${encodeURIComponent(prefix)}&apnamespace=0&aplimit=500&format=json&origin=*`;
       const response = await fetch(url);
       const data = await response.json();
 
       const clean = data.query.allpages
         .map(p => p.title)
-        // Only plain words: letters + French accents, 4-11 chars, no spaces/symbols
-        .filter(w => /^[a-zA-ZÀ-ÿœæŒÆ]{4,11}$/.test(w))
-        // Exclude proper nouns (capitalized) and acronyms (all caps)
-        // Keep only lowercase entries (real common words in Wiktionary are lowercase)
-        .filter(w => w[0] === w[0].toLowerCase())
+        // Only lowercase entries (real words, not acronyms or proper nouns)
+        .filter(w => w === w.toLowerCase())
+        // Only pure letters (French alphabet), 4 to 10 chars
+        .filter(w => /^[a-zàâäéèêëîïôùûüçœæ]{4,10}$/.test(w))
         .map(w => w.toUpperCase());
 
       res.status(200).json({ words: clean });
@@ -28,7 +27,6 @@ export default async function handler(req, res) {
 
       const pages = data.query.pages;
       const page = Object.values(pages)[0];
-
       if (!page.revisions) return res.status(200).json({ result: null });
 
       const wikitext = page.revisions[0].slots.main['*'];
@@ -38,21 +36,19 @@ export default async function handler(req, res) {
       const frSection = sections.find(s => s.startsWith('== {{langue|fr}}'));
       if (!frSection) return res.status(200).json({ result: null });
 
-      // Detect grammar type
+      // Grammar type
       let grammar = '—';
       if (/\{\{S\|nom/.test(frSection)) grammar = 'n.';
       else if (/\{\{S\|verbe/.test(frSection)) grammar = 'v.';
       else if (/\{\{S\|adjectif/.test(frSection)) grammar = 'adj.';
       else if (/\{\{S\|adverbe/.test(frSection)) grammar = 'adv.';
       else if (/\{\{S\|pronom/.test(frSection)) grammar = 'pron.';
-      else if (/\{\{S\|préposition/.test(frSection)) grammar = 'prép.';
 
-      // Find first real definition line (starts with # but not ## or #* or #:)
+      // First real definition line
       const defLine = frSection.split('\n').find(l => /^# [^#*:;]/.test(l));
       if (!defLine) return res.status(200).json({ result: null });
 
       let def = defLine.replace(/^# /, '');
-      // Clean wiki markup
       def = def.replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2');
       def = def.replace(/\{\{[^}]+\}\}/g, '');
       def = def.replace(/'{2,3}/g, '');
