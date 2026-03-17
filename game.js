@@ -22,8 +22,17 @@ function dateSeed() {
   return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
 }
 
-// Letters with decent Wiktionary coverage
-const LETTERS = ['B','C','F','G','H','J','L','M','N','P','R','S','T','V'];
+// Préfixes de 2 lettres pour éviter les noms propres étrangers en début d'index
+const LETTERS = [
+  'ba','be','bi','bo','br','ca','ce','ch','co','cr',
+  'de','di','do','en','fa','fe','fi','fl','fo','fr',
+  'ga','ge','gi','gr','gu','ha','ho','hu','im','in',
+  'ja','jo','la','le','li','lo','lu','ma','me','mi',
+  'mo','mu','na','no','nu','ob','oc','pa','pe',
+  'pi','pl','po','pr','pu','ra','re','ri','ro','ru',
+  'sa','sc','se','si','so','sp','st','su','ta','te',
+  'ti','to','tr','tu','va','ve','vi','vo'
+];
 
 // Fetch with timeout — prevents hanging forever if API is unreachable
 async function fetchWithTimeout(url, ms = 7000) {
