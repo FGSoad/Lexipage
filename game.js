@@ -48,7 +48,7 @@ async function fetchWiktionaryWords(prefix, limit = 80) {
   const url = `/api/wiktionary?action=list&prefix=${encodeURIComponent(prefix)}&limit=${limit}`;
   const resp = await fetchWithTimeout(url);
   const data = await resp.json();
-  const pages = data.query.allpages.map(p => p.title.toUpperCase());
+  const pages = data.words; //const pages = data.query.allpages.map(p => p.title.toUpperCase());
   // Keep only clean words: only letters + accents, 4–10 chars
   return pages.filter(w => /^[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ]{4,10}$/.test(w));
 }
