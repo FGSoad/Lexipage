@@ -1,7 +1,5 @@
 {
-  "functions": {
-    "api/wiktionary.js": {
-      "runtime": "nodejs20.x"
-    }
+  "engine": {
+    "node": "20.x"
   }
 }
