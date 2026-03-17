@@ -5,7 +5,7 @@
 
 // DEBUG — forcer une date (format: YYYY-MM-DD)
 // mets null pour revenir au comportement normal
-const DEBUG_DATE = "2026-03-21";
+const DEBUG_DATE = "2026-03-10";
 // const DEBUG_DATE = null;
 
 // Seeded RNG for reproducible daily puzzle
@@ -17,22 +17,18 @@ function seededRng(seed) {
   };
 }
 
+//function dateSeed() {
+//  const today = new Date();
+//  return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+//}
+
 function dateSeed() {
   const today = DEBUG_DATE ? new Date(DEBUG_DATE) : new Date();
   return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
 }
 
-// Préfixes de 2 lettres pour éviter les noms propres étrangers en début d'index
-const LETTERS = [
-  'ba','be','bi','bo','br','ca','ce','ch','co','cr',
-  'de','di','do','en','fa','fe','fi','fl','fo','fr',
-  'ga','ge','gi','gr','gu','ha','ho','hu','im','in',
-  'ja','jo','la','le','li','lo','lu','ma','me','mi',
-  'mo','mu','na','no','nu','ob','oc','pa','pe',
-  'pi','pl','po','pr','pu','ra','re','ri','ro','ru',
-  'sa','sc','se','si','so','sp','st','su','ta','te',
-  'ti','to','tr','tu','va','ve','vi','vo'
-];
+// Letters with decent Wiktionary coverage
+const LETTERS = ['B','C','F','G','H','J','L','M','N','P','R','S','T','V'];
 
 // Fetch with timeout — prevents hanging forever if API is unreachable
 async function fetchWithTimeout(url, ms = 7000) {
@@ -48,51 +44,22 @@ async function fetchWithTimeout(url, ms = 7000) {
   }
 }
 
-async function fetchWiktionaryWords(prefix) {
-  const url = `https://fr.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${encodeURIComponent(prefix)}&apnamespace=0&aplimit=500&format=json&origin=*`;
+async function fetchWiktionaryWords(prefix, limit = 80) {
+  const url = `/api/wiktionary?action=list&prefix=${encodeURIComponent(prefix)}&limit=${limit}`;
   const resp = await fetchWithTimeout(url);
   const data = await resp.json();
-  console.log('Wiktionary raw count:', data.query.allpages.length);
-  const words = data.query.allpages
-    .map(p => p.title)
-    .filter(w => /^[a-zàâäéèêëîïôùûüçœæ]{3,9}[a-zàâäéèêëîïôùûüçœæ]$/i.test(w))
-    .filter(w => w[1] === w[1].toLowerCase()) // 2ème lettre minuscule = pas acronyme ni nom propre
-    .filter(w => w.length >= 4 && w.length <= 10)
-    .map(w => w.toUpperCase());
-  console.log('Filtered words count:', words.length, words.slice(0, 5));
-  return words;
+  const pages = data.query.allpages.map(p => p.title.toUpperCase());
+  // Keep only clean words: only letters + accents, 4–10 chars
+  return pages.filter(w => /^[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ]{4,10}$/.test(w));
 }
 
 async function fetchDefinition(word) {
-  const url = `https://fr.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word.toLowerCase())}&prop=revisions&rvprop=content&rvslots=main&format=json&origin=*`;
+  const url = `/api/wiktionary?action=define&word=${encodeURIComponent(word.toLowerCase())}`;
   try {
     const resp = await fetchWithTimeout(url);
     const data = await resp.json();
-    const pages = data.query.pages;
-    const page = Object.values(pages)[0];
-    if (!page.revisions) return null;
-    const wikitext = page.revisions[0].slots.main['*'];
-    const sections = wikitext.split(/(?=== \{\{langue\|)/);
-    const frSection = sections.find(s => s.startsWith('== {{langue|fr}}'));
-    if (!frSection) return null;
-    let grammar = '—';
-    if (/\{\{S\|nom/.test(frSection)) grammar = 'n.';
-    else if (/\{\{S\|verbe/.test(frSection)) grammar = 'v.';
-    else if (/\{\{S\|adjectif/.test(frSection)) grammar = 'adj.';
-    else if (/\{\{S\|adverbe/.test(frSection)) grammar = 'adv.';
-    else if (/\{\{S\|pronom/.test(frSection)) grammar = 'pron.';
-    const defLine = frSection.split('\n').find(l => /^# [^#*:;]/.test(l));
-    if (!defLine) return null;
-    let def = defLine.replace(/^# /, '');
-    def = def.replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2');
-    def = def.replace(/\{\{[^}]+\}\}/g, '');
-    def = def.replace(/'{2,3}/g, '');
-    def = def.replace(/<[^>]+>/g, '');
-    def = def.replace(/\s+/g, ' ').trim();
-    if (def) def = def.charAt(0).toUpperCase() + def.slice(1);
-    if (def && !def.endsWith('.')) def += '.';
-    if (!def || def.length < 8 || def.length > 250) return null;
-    return { grammar, definition: def };
+    if (!data.result) return null;
+    return data.result;
   } catch (e) {
     return null;
   }
@@ -121,21 +88,19 @@ async function _generatePuzzleInner() {
   // Pick letter
   const letterIdx = Math.floor(rng() * LETTERS.length);
   const letter = LETTERS[letterIdx];
-  console.log('Letter chosen:', letter);
 
   setLoadingMsg(`Chargement des mots en « ${letter} »…`);
 
   let words = [];
   try {
-    words = await fetchWiktionaryWords(letter);
+    words = await fetchWiktionaryWords(letter, 120);
   } catch(e) {
-    console.warn('fetchWiktionaryWords failed:', e);
+    // Fallback to hardcoded if API fails
     useFallback();
     return;
   }
 
   if (words.length < 20) {
-    console.warn('FALLBACK: not enough words:', words.length);
     useFallback();
     return;
   }
@@ -144,49 +109,39 @@ async function _generatePuzzleInner() {
   words.sort((a, b) => a.localeCompare(b, 'fr'));
 
   // Pick a random starting position using seeded rng
-  const maxStart = words.length - 32;
+  const maxStart = words.length - 22;
   const startIdx = Math.floor(rng() * Math.max(1, maxStart));
-  const slice = words.slice(startIdx, startIdx + 80);
+  const slice = words.slice(startIdx, startIdx + 60);
 
-  // From this slice, pick 30 evenly spaced candidates
-  const step = Math.floor(slice.length / 30);
+  // From this slice, pick 20 evenly spaced words
+  const step = Math.floor(slice.length / 20);
   let candidates = [];
-  for (let i = 0; i < 30 && candidates.length < 30; i++) {
+  for (let i = 0; i < 20 && candidates.length < 20; i++) {
     const idx = i * step;
     if (idx < slice.length) candidates.push(slice[idx]);
   }
-  candidates = [...new Set(candidates)].slice(0, 30);
-  console.log('Candidates:', candidates.length, candidates);
-
-  if (candidates.length < 4) {
-    console.warn('FALLBACK: not enough candidates:', candidates.length);
-    useFallback();
-    return;
-  }
+  // Deduplicate
+  candidates = [...new Set(candidates)].slice(0, 20);
+  if (candidates.length < 6) { useFallback(); return; }
 
   setLoadingMsg('Récupération des définitions…');
 
-  // Fetch definitions sequentially with small delay
+  // Fetch definitions in parallel (limit to avoid rate limiting)
   const results = [];
   for (let i = 0; i < candidates.length; i++) {
     const w = candidates[i];
     setLoadingMsg(`Définitions… ${i + 1}/${candidates.length}`);
     const def = await fetchDefinition(w);
-    console.log(w, '->', def ? 'ok' : 'null');
     if (def) {
       results.push({ word: w, grammar: def.grammar, definition: def.definition, letters: w.length });
     }
+    // small delay to be polite to the API
     if (i < candidates.length - 1) await sleep(120);
   }
 
-  console.log('Results with definitions:', results.length, results.map(r => r.word));
+  if (results.length < 6) { useFallback(); return; }
 
-  if (results.length < 4) {
-    console.warn('FALLBACK: not enough definitions:', results.length);
-    useFallback();
-    return;
-  }
-
+  //const today = new Date().toISOString().split('T')[0];
   const today = DEBUG_DATE ? DEBUG_DATE : new Date().toISOString().split('T')[0];
   PUZZLE = { date: today, words: results };
   startGame();
@@ -481,7 +436,9 @@ function useFallback() {
     { word: "STEPPE", grammar: "n. f.", definition: "Vaste plaine herbeuse semi-aride des régions tempérées continentales." },
     { word: "STIGMATE", grammar: "n. m.", definition: "Marque durable laissée par une blessure ; signe distinctif d'une origine." },
     { word: "STRATÈGE", grammar: "n. m.", definition: "Général ou chef militaire habile ; personne qui élabore des plans d'action." },
+    { word: "STRIATE", grammar: "adj.", definition: "Marqué de stries parallèles, de fines rayures régulières." },
     { word: "SUBSTRAT", grammar: "n. m.", definition: "Couche profonde qui sert de support à une autre ; base fondamentale." },
+    { word: "SUNLIGHT", grammar: "n. m.", definition: "Lumière intense artificielle utilisée dans le cinéma et la photographie." },
     { word: "SYCAMORE", grammar: "n. m.", definition: "Grand érable aux feuilles lobées ; figuier d'Orient à bois imputrescible." },
     { word: "SYLVESTRE", grammar: "adj.", definition: "Qui vit ou croît dans les forêts ; relatif aux bois et aux forêts." },
     { word: "SYMBIOSE", grammar: "n. f.", definition: "Association durable et mutuellement bénéfique entre deux organismes vivants." },
@@ -510,6 +467,7 @@ function useFallback() {
     { word: "VIVACE", grammar: "adj.", definition: "Qui vit longtemps ; plante revenant chaque année sans être replantée." },
     { word: "VOLCAN", grammar: "n. m.", definition: "Relief terrestre résultant de l'émission de matériaux en fusion depuis le manteau." },
     { word: "VOÛTE", grammar: "n. f.", definition: "Construction en arc de cercle formant un plafond courbé." },
+    { word: "VULTURE", grammar: "n. m.", definition: "Dans la mythologie, vautour envoyé pour tourmenter Prométhée enchaîné." },
     { word: "XÉNON", grammar: "n. m.", definition: "Gaz rare de l'atmosphère, utilisé dans les lampes à haute intensité." },
     { word: "ZÉNITH", grammar: "n. m.", definition: "Point du ciel situé directement au-dessus de l'observateur ; sommet, apogée." },
     { word: "ZEUGME", grammar: "n. m.", definition: "Figure de style reliant un mot à deux autres dont il ne s'accorde qu'à l'un." },
@@ -518,14 +476,17 @@ function useFallback() {
     { word: "ZODIAQUE", grammar: "n. m.", definition: "Zone circulaire du ciel traversée par le Soleil, divisée en douze signes." }
   ];
 
+  // Sort pool
   POOL.sort((a, b) => a.word.localeCompare(b.word, 'fr'));
 
+  // Pick 20 consecutive words using seeded rng
   const rng2 = seededRng(seed);
-  rng2(); rng2();
+  rng2(); rng2(); // advance state
   const maxIdx = POOL.length - 21;
   const startIdx = Math.floor(rng2() * maxIdx);
   const selected = POOL.slice(startIdx, startIdx + 20);
 
+  //const today = new Date().toISOString().split('T')[0];
   const today = DEBUG_DATE ? DEBUG_DATE : new Date().toISOString().split('T')[0];
   PUZZLE = { date: today, words: selected, fallback: true };
   startGame();
@@ -546,18 +507,22 @@ const state = {
 //  START GAME
 // ============================================================
 function startGame() {
+  // Hide loading
   const overlay = document.getElementById('loadingOverlay');
   overlay.classList.add('hidden');
   setTimeout(() => overlay.remove(), 600);
 
+  // Date
   const d = new Date(PUZZLE.date + 'T12:00:00');
   document.getElementById('todayDate').textContent =
     d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
 
+  // Page range
   const first = PUZZLE.words[0].word;
   const last = PUZZLE.words[PUZZLE.words.length - 1].word;
   document.getElementById('pageRange').textContent = `${first} — ${last}`;
 
+  // Hidden = all except first and last
   state.total = PUZZLE.words.length - 2;
   updateProgress();
   renderWords();
@@ -586,11 +551,13 @@ function renderWords() {
       (isFound ? ' found-word' : '');
     div.id = `entry-${entry.word}`;
 
+    // Entry number
     const num = document.createElement('span');
     num.className = 'entry-num';
     num.textContent = String(i + 1).padStart(2, '0');
     div.appendChild(num);
 
+    // Word column
     const wordCol = document.createElement('div');
     wordCol.className = 'word-col';
 
@@ -611,6 +578,7 @@ function renderWords() {
     }
     div.appendChild(wordCol);
 
+    // Definition column
     const defCol = document.createElement('div');
     defCol.className = 'definition-col';
 
@@ -638,6 +606,7 @@ function renderWords() {
     }
     div.appendChild(defCol);
 
+    // Hint button
     const hintCol = document.createElement('div');
     hintCol.className = 'hint-col';
 
@@ -666,7 +635,7 @@ function revealHint(word) {
 }
 
 // ============================================================
-//  INPUT
+//  INPUT — no autocomplete to avoid spoilers
 // ============================================================
 function setupInput() {
   const input = document.getElementById('wordInput');
@@ -683,6 +652,7 @@ function submit() {
   const raw = input.value.trim();
   if (!raw) return;
 
+  // Normalize: uppercase, remove accents for comparison
   const guess = raw.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const guessWithAccents = raw.toUpperCase();
 
@@ -705,6 +675,7 @@ function submit() {
     return;
   }
 
+  // Match with or without accents
   const match = PUZZLE.words.find(w => {
     const wNorm = w.word.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return w.word === guessWithAccents || wNorm === guess;
