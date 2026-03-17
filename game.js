@@ -44,45 +44,12 @@ async function fetchWiktionaryWords(prefix, limit = 80) {
 }
 
 async function fetchDefinition(word) {
-  // Use Wiktionary parse API to get the page intro
   const url = `/api/wiktionary?action=define&word=${encodeURIComponent(word.toLowerCase())}`;
   try {
     const resp = await fetchWithTimeout(url);
     const data = await resp.json();
-    const pages = data.query.pages;
-    const page = Object.values(pages)[0];
-    if (!page.revisions) return null;
-    const wikitext = page.revisions[0].slots.main['*'];
-
-    // Parse grammar type
-    let grammar = '';
-    const gramMatch = wikitext.match(/\{\{-([^-]+)-\|/);
-    if (gramMatch) {
-      const g = gramMatch[1];
-      if (g.includes('nom')) grammar = 'n.';
-      else if (g.includes('verb')) grammar = 'v.';
-      else if (g.includes('adj')) grammar = 'adj.';
-      else if (g.includes('adv')) grammar = 'adv.';
-      else grammar = g.slice(0, 6) + '.';
-    }
-
-    // Parse first definition line (lines starting with #)
-    const defLines = wikitext.split('\n').filter(l => l.startsWith('# ') && !l.startsWith('## '));
-    if (defLines.length === 0) return null;
-
-    let def = defLines[0].replace(/^# /, '');
-    // Clean wiki markup
-    def = def.replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2');
-    def = def.replace(/\{\{[^}]+\}\}/g, '');
-    def = def.replace(/'{2,3}/g, '');
-    def = def.replace(/<[^>]+>/g, '');
-    def = def.replace(/\s+/g, ' ').trim();
-    def = def.charAt(0).toUpperCase() + def.slice(1);
-    if (!def.endsWith('.')) def += '.';
-
-    if (def.length < 10 || def.length > 200) return null;
-
-    return { grammar: grammar || '—', definition: def };
+    if (!data.result) return null;
+    return data.result;
   } catch (e) {
     return null;
   }
