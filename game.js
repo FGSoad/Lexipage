@@ -51,8 +51,9 @@ async function fetchWiktionaryWords(prefix) {
   console.log('Wiktionary raw count:', data.query.allpages.length);
   const words = data.query.allpages
     .map(p => p.title)
-    .filter(w => w === w.toLowerCase())
-    .filter(w => /^[a-zàâäéèêëîïôùûüçœæ]{4,10}$/.test(w))
+    .filter(w => /^[a-zàâäéèêëîïôùûüçœæ]{3,9}[a-zàâäéèêëîïôùûüçœæ]$/i.test(w)) // que des lettres
+    .filter(w => w[1] === w[1].toLowerCase()) // 2ème lettre minuscule = pas un acronyme ni nom propre
+    .filter(w => w.length >= 4 && w.length <= 10)
     .map(w => w.toUpperCase());
   console.log('Filtered words count:', words.length, words.slice(0, 5));
   return words;
