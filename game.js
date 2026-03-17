@@ -44,22 +44,47 @@ async function fetchWithTimeout(url, ms = 7000) {
   }
 }
 
-async function fetchWiktionaryWords(prefix, limit = 80) {
-  const url = `/api/wiktionary?action=list&prefix=${encodeURIComponent(prefix)}&limit=${limit}`;
+async function fetchWiktionaryWords(prefix) {
+  const url = `https://fr.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${encodeURIComponent(prefix)}&apnamespace=0&aplimit=500&format=json&origin=*`;
   const resp = await fetchWithTimeout(url);
   const data = await resp.json();
-  const pages = data.words; //const pages = data.query.allpages.map(p => p.title.toUpperCase());
-  // Keep only clean words: only letters + accents, 4–10 chars
-  return pages.filter(w => /^[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ]{4,10}$/.test(w));
+  return data.query.allpages
+    .map(p => p.title)
+    .filter(w => w === w.toLowerCase())
+    .filter(w => /^[a-zàâäéèêëîïôùûüçœæ]{4,10}$/.test(w))
+    .map(w => w.toUpperCase());
 }
 
 async function fetchDefinition(word) {
-  const url = `/api/wiktionary?action=define&word=${encodeURIComponent(word.toLowerCase())}`;
+  const url = `https://fr.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word.toLowerCase())}&prop=revisions&rvprop=content&rvslots=main&format=json&origin=*`;
   try {
     const resp = await fetchWithTimeout(url);
     const data = await resp.json();
-    if (!data.result) return null;
-    return data.result;
+    const pages = data.query.pages;
+    const page = Object.values(pages)[0];
+    if (!page.revisions) return null;
+    const wikitext = page.revisions[0].slots.main['*'];
+    const sections = wikitext.split(/(?=== \{\{langue\|)/);
+    const frSection = sections.find(s => s.startsWith('== {{langue|fr}}'));
+    if (!frSection) return null;
+    let grammar = '—';
+    if (/\{\{S\|nom/.test(frSection)) grammar = 'n.';
+    else if (/\{\{S\|verbe/.test(frSection)) grammar = 'v.';
+    else if (/\{\{S\|adjectif/.test(frSection)) grammar = 'adj.';
+    else if (/\{\{S\|adverbe/.test(frSection)) grammar = 'adv.';
+    else if (/\{\{S\|pronom/.test(frSection)) grammar = 'pron.';
+    const defLine = frSection.split('\n').find(l => /^# [^#*:;]/.test(l));
+    if (!defLine) return null;
+    let def = defLine.replace(/^# /, '');
+    def = def.replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2');
+    def = def.replace(/\{\{[^}]+\}\}/g, '');
+    def = def.replace(/'{2,3}/g, '');
+    def = def.replace(/<[^>]+>/g, '');
+    def = def.replace(/\s+/g, ' ').trim();
+    if (def) def = def.charAt(0).toUpperCase() + def.slice(1);
+    if (def && !def.endsWith('.')) def += '.';
+    if (!def || def.length < 8 || def.length > 250) return null;
+    return { grammar, definition: def };
   } catch (e) {
     return null;
   }
