@@ -5,7 +5,7 @@
 
 // DEBUG — forcer une date (format: YYYY-MM-DD)
 // mets null pour revenir au comportement normal
-const DEBUG_DATE = "2026-03-18";
+const DEBUG_DATE = "2026-03-19";
 // const DEBUG_DATE = null;
 
 // Seeded RNG for reproducible daily puzzle
