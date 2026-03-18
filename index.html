@@ -192,12 +192,10 @@
 
   /* DICTIONARY PAGE */
   .dictionary-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
     border: 2px solid var(--ink);
     background: var(--paper);
     box-shadow: 6px 6px 0 var(--shadow);
+    overflow: hidden;
   }
 
   .page-header {
@@ -213,30 +211,70 @@
     text-transform: uppercase;
   }
 
+  /* GRID sur le conteneur — toutes les colonnes alignées */
   #wordList {
     display: grid;
-    grid-template-columns: minmax(180px, max-content) 1fr auto;
+    grid-template-columns: minmax(160px, max-content) 1fr auto;
   }
-  
-  .word-entry {
-    display: contents; /* chaque entry "disparaît" et ses enfants entrent dans le grid parent */
-    border-bottom: 1px solid var(--border);
-    min-height: 64px;
-    position: relative;
-    transition: background 0.2s;
-  }
-  
-  .word-entry:last-child { border-bottom: none; }
-  .word-entry:hover { background: rgba(201,168,76,0.04); }
 
-  .word-entry.anchor-word { background: rgba(201,168,76,0.08); }
-  .word-entry.found-word { background: var(--found-bg); }
+  /* Chaque entry devient transparente pour le layout */
+  .word-entry {
+    display: contents;
+  }
+
+  /* Les trois enfants directs portent les styles visuels */
+  .word-col,
+  .definition-col,
+  .hint-col {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+    position: relative;
+  }
+
+  /* Supprimer la bordure sur la dernière ligne */
+  .word-entry:last-child .word-col,
+  .word-entry:last-child .definition-col,
+  .word-entry:last-child .hint-col {
+    border-bottom: none;
+  }
+
+  /* Backgrounds par état */
+  .word-entry.anchor-word .word-col,
+  .word-entry.anchor-word .definition-col,
+  .word-entry.anchor-word .hint-col {
+    background: rgba(201,168,76,0.08);
+  }
+
+  .word-entry.found-word .word-col,
+  .word-entry.found-word .definition-col,
+  .word-entry.found-word .hint-col {
+    background: var(--found-bg);
+  }
+
+  .word-entry:hover .word-col,
+  .word-entry:hover .definition-col,
+  .word-entry:hover .hint-col {
+    background: rgba(201,168,76,0.04);
+  }
+
+  .word-entry.anchor-word:hover .word-col,
+  .word-entry.anchor-word:hover .definition-col,
+  .word-entry.anchor-word:hover .hint-col {
+    background: rgba(201,168,76,0.12);
+  }
+
+  .word-entry.found-word:hover .word-col,
+  .word-entry.found-word:hover .definition-col,
+  .word-entry.found-word:hover .hint-col {
+    background: #c8ecd0;
+  }
 
   .word-col {
     padding: 14px 24px;
     border-right: 1px solid var(--border);
     display: flex;
     align-items: center;
+    min-height: 64px;
   }
 
   .word-display {
@@ -268,8 +306,8 @@
     font-size: 0.65rem;
     color: var(--sepia);
     position: absolute;
-    top: 6px;
-    left: 8px;
+    top: 5px;
+    left: 6px;
     opacity: 0.5;
   }
 
@@ -279,7 +317,6 @@
     flex-direction: column;
     justify-content: center;
     gap: 4px;
-    flex: 1;
     min-height: 64px;
   }
 
@@ -324,6 +361,7 @@
     align-items: center;
     border-left: 1px solid var(--border);
     min-width: 52px;
+    min-height: 64px;
     justify-content: center;
   }
 
@@ -346,16 +384,15 @@
   .hint-btn:hover { background: var(--gold); border-color: var(--gold); color: var(--ink); }
   .hint-btn.used { background: var(--sepia); border-color: var(--sepia); color: var(--cream); }
 
-  /* HINT REVEALED state */
-  .word-entry.hint-revealed .definition-text { font-style: italic; color: var(--sepia); }
-
   /* FOUND ANIMATION */
   @keyframes foundPop {
     0% { transform: scale(1); }
     40% { transform: scale(1.015); }
     100% { transform: scale(1); }
   }
-  .word-entry.just-found {
+  .word-entry.just-found .word-col,
+  .word-entry.just-found .definition-col,
+  .word-entry.just-found .hint-col {
     animation: foundPop 0.4s ease-out;
   }
 
@@ -476,7 +513,7 @@
   }
   .share-btn:hover { background: var(--gold); border-color: var(--gold); color: var(--ink); }
 
-  /* LEADERBOARD stub */
+  /* LEADERBOARD */
   .leaderboard-section {
     margin-top: 48px;
     border: 2px solid var(--border);
@@ -504,7 +541,9 @@
 
   /* RESPONSIVE */
   @media (max-width: 640px) {
-    .word-entry { grid-template-columns: 140px 1fr 48px; }
+    #wordList {
+      grid-template-columns: minmax(120px, max-content) 1fr auto;
+    }
     .word-col { padding: 10px 14px; }
     .word-display { font-size: 1rem; }
     .container { padding: 20px 12px 60px; }
@@ -514,7 +553,7 @@
     .completion-title { font-size: 1.6rem; }
   }
 
-  /* Loading state */
+  /* LOADING */
   .loading-overlay {
     position: fixed;
     inset: 0;
