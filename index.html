@@ -215,7 +215,7 @@
 
   .word-entry {
     display: grid;
-    grid-template-columns: 220px 1fr auto;
+    grid-template-columns: minmax(180px, auto) 1fr auto;
     gap: 0;
     border-bottom: 1px solid var(--border);
     min-height: 64px;
@@ -276,6 +276,7 @@
     justify-content: center;
     gap: 4px;
     flex: 1;
+    min-height: 64px;
   }
 
   .definition-text {
