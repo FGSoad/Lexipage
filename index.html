@@ -213,15 +213,19 @@
     text-transform: uppercase;
   }
 
-  .word-entry {
+  #wordList {
     display: grid;
-    grid-template-columns: minmax(180px, auto) 1fr auto;
-    gap: 0;
+    grid-template-columns: minmax(180px, max-content) 1fr auto;
+  }
+  
+  .word-entry {
+    display: contents; /* chaque entry "disparaît" et ses enfants entrent dans le grid parent */
     border-bottom: 1px solid var(--border);
     min-height: 64px;
     position: relative;
     transition: background 0.2s;
   }
+  
   .word-entry:last-child { border-bottom: none; }
   .word-entry:hover { background: rgba(201,168,76,0.04); }
 
